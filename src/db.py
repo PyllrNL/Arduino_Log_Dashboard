@@ -3,6 +3,7 @@ import numpy
 from pathlib import Path
 import random
 import time
+from datetime import datetime
 import uuid
 
 sql_file = Path("./db.sql")
@@ -55,7 +56,7 @@ class database:
         db_dev = self.cur.execute("SELECT device_id FROM devices;").fetchall()
         db_dev = [ x[0] for x in db_dev ]
         for I in db_dev:
-            statement = f"SELECT id FROM samples WHERE device_id={I} ORDER BY id DESC;"
+            statement = f"SELECT NUM FROM samples WHERE device_id={I} ORDER BY id DESC;"
             self.cur.execute(statement)
             count = self.cur.fetchone()
             if count == None:
@@ -113,17 +114,23 @@ class database:
         self.devices.update_count(device_id, sample_count)
 
     def get_samples(self, count, device_id=None):
-        pass
+        if count > 0:
+            statement = f"SELECT TIME, VOLTAGE, CURRENT FROM samples ORDER BY\
+            TIME DESC LIMIT {count};"
+        else:
+            statement = f"SELECT TIME, VOLTAGE, CURRENT FROM samples ORDER BY\
+                    TIME DESC;"
+        data = self.cur.execute(statement).fetchall()
+        data.reverse()
+        voltages = list()
+        currents = list()
+        dates = list()
+        for I in data:
+            date = datetime.utcfromtimestamp(I[0]).strftime("%Y-%m-%d %H:%M:%S")
+            dates.append(date)
+            voltages.append(I[1])
+            currents.append(I[2])
+        return (dates, voltages, currents)
 
     def close(self):
         self.con.close()
-
-a = database(database_file)
-device = a.new_device("test")
-device2 = a.new_device("test 2")
-device3 = a.new_device("test 3")
-for I in range(10):
-    a.write_sample(float(random.randint(0, 100)), float(random.randint(0,100)),device[0])
-    a.write_sample(float(random.randint(0, 100)), float(random.randint(0,100)),device2[0])
-    a.write_sample(float(random.randint(0, 100)), float(random.randint(0,100)),device3[0])
-a.close()

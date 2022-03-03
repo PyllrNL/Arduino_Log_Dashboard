@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+
+<html>
+    <head>
+        <title>{{ title }}</title>
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    </head>
+    <body>
+        <canvas id="test_chart"></canvas>
+        <script>
+
+            config = {
+                type: 'line',
+                data: {
+                    labels : [
+                        {% for d in dates %}
+                            "{{ d }}",
+                        {% end %}
+                    ],
+                    datasets: [{
+                        label : 'voltage',
+                        backgroundColor: 'rgb(255, 99, 132)',
+                        borderColor: 'rgb(255, 99, 132)',
+                        data: [
+                            {% for v in voltage %}
+                                {{ v }},
+                            {% end %}
+                        ]
+                    },{
+                        label : 'current',
+                        backgroundColor: 'rgb(99, 255, 132)',
+                        borderColor: 'rgb(99, 255, 132)',
+                        data: [
+                            {% for c in current %}
+                                {{ c }},
+                            {% end %}
+                        ]
+                    }]
+                }
+            };
+
+            const ctx = document.getElementById('test_chart').getContext('2d');
+            const myChart = new Chart(ctx, config);
+
+            webSocket = new WebSocket("ws://localhost:8080/Client")
+
+            webSocket.onmessage = function(event) {
+                var msg = JSON.parse(event.data);
+                var length = msg.voltage.length;
+                config.data.labels.splice(0, length);
+                config.data.datasets[0].data.splice(0, length);
+                config.data.datasets[1].data.splice(0, length);
+                config.data.labels = config.data.labels.concat(msg.date);
+                config.data.datasets[0].data = config.data.datasets[0].data.concat(msg.voltage);
+                config.data.datasets[1].data = config.data.datasets[1].data.concat(msg.current);
+                myChart.update();
+            }
+        </script>
+    </body>
+</html>
