@@ -17,6 +17,17 @@ class MainHandler(tornado.web.RequestHandler):
         self.render("template.html", title="Websockets test", dates=items[0],
                 voltage=items[1], current=items[2])
 
+class CSVHandler(tornado.web.RequestHandler):
+    def get(self):
+        self.set_header("Content-Type", "test/csv")
+        self.set_header("Content-Description", "File Transfer")
+        self.set_header('Content-Disposition', 'attachment; filename="test.csv"')
+        items = database.get_samples(0)
+        output = "date,voltage,current\n"
+        for i in range(0,len(items[0])):
+            output = output + f"'{items[0][i]}', {items[1][i]}, {items[2][i]}\n"
+        self.write(output)
+
 class ArduinoHandler(tornado.websocket.WebSocketHandler):
     channels = set()
 
@@ -100,6 +111,7 @@ class ClientHandler(tornado.websocket.WebSocketHandler):
 def make_app():
     return tornado.web.Application([
         (r"/", MainHandler), 
+        (r"/Download", CSVHandler), 
         (r"/Client", ClientHandler),
         (r"/Arduino", ArduinoHandler)
         ])

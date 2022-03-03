@@ -13,10 +13,10 @@ async def hello():
             current = list()
             voltage = list()
             for j in range(0,10):
-                temp_v = 5.0 * math.sin(2*math.pi*100*(i / 10000.0))
-                temp_v = temp_v + (random.randint(-100, 100) / 1000.0 )
-                temp_c = math.sin(2*math.pi*100*(i / 10000.0) + (0.25 * math.pi))
-                temp_c = temp_c + (random.randint(-100, 100) / 1000.0 )
+                temp_v = 5.0 * math.sin(2*math.pi*200*(i / 4000.0))
+                temp_v = temp_v + (random.randint(-100, 100) / 200.0 )
+                temp_c = math.sin(2*math.pi*200*(i / 4000.0) + (0.25 * math.pi))
+                temp_c = temp_c + (random.randint(-100, 100) / 200.0 )
                 current.append(temp_c)
                 voltage.append(temp_v)
                 i += 1

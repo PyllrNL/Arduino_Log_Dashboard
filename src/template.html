@@ -6,10 +6,19 @@
         <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     </head>
     <body>
-        <canvas id="test_chart"></canvas>
+        <a href="/Download" download>
+            <button>Download</button>
+        </a>
+        <canvas id="voltage_chart"></canvas>
+        <canvas id="current_chart"></canvas>
         <script>
 
-            config = {
+            vconfig = {
+                options : {
+                    animation : {
+                        duration : 500,
+                    },
+                },
                 type: 'line',
                 data: {
                     labels : [
@@ -26,34 +35,58 @@
                                 {{ v }},
                             {% end %}
                         ]
-                    },{
-                        label : 'current',
-                        backgroundColor: 'rgb(99, 255, 132)',
-                        borderColor: 'rgb(99, 255, 132)',
-                        data: [
-                            {% for c in current %}
-                                {{ c }},
-                            {% end %}
-                        ]
                     }]
                 }
             };
 
-            const ctx = document.getElementById('test_chart').getContext('2d');
-            const myChart = new Chart(ctx, config);
+            cconfig = {
+                options : {
+                    animation : {
+                        duration : 500,
+                    },
+                },
+                type: 'line',
+                data : {
+                    labels : [
+                        {% for d in dates %}
+                            "{{ d }}",
+                        {% end %}
+                    ],
+                    datasets : [{
+                        label : 'current',
+                        backgroundColor : 'rgb(99,255,132)',
+                        borderColor : 'rgb(99,255,132)',
+                        data : [
+                            {% for c in current %}
+                                {{ c }},
+                            {% end %}
+                        ],
+                    }],
+                },
+            };
+
+            const v_ctx = document.getElementById('voltage_chart').getContext('2d');
+            const c_ctx = document.getElementById('current_chart').getContext('2d');
+            const Voltage_Chart = new Chart(v_ctx, vconfig);
+            const Current_Chart = new Chart(c_ctx, cconfig);
 
             webSocket = new WebSocket("ws://localhost:8080/Client")
 
             webSocket.onmessage = function(event) {
                 var msg = JSON.parse(event.data);
                 var length = msg.voltage.length;
-                config.data.labels.splice(0, length);
-                config.data.datasets[0].data.splice(0, length);
-                config.data.datasets[1].data.splice(0, length);
-                config.data.labels = config.data.labels.concat(msg.date);
-                config.data.datasets[0].data = config.data.datasets[0].data.concat(msg.voltage);
-                config.data.datasets[1].data = config.data.datasets[1].data.concat(msg.current);
-                myChart.update();
+                for ( let i = 0; i < length; i++) {
+                    vconfig.data.labels.splice(0, 1);
+                    cconfig.data.labels.splice(0, 1);
+                    vconfig.data.labels.push(msg.date[i]);
+                    cconfig.data.labels.push(msg.date[i]);
+                    vconfig.data.datasets[0].data.splice(0, 1);
+                    vconfig.data.datasets[0].data.push(msg.voltage[i]);
+                    cconfig.data.datasets[0].data.splice(0, 1);
+                    cconfig.data.datasets[0].data.push(msg.current[i]);
+                    Voltage_Chart.update();
+                    Current_Chart.update();
+                }
             }
         </script>
     </body>
