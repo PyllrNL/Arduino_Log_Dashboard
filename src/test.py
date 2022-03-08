@@ -3,31 +3,40 @@ import websockets
 import time
 import random
 import math
+import string
+
+import base64
+import msgpack
+i = 0
+
+def construct_data(samples):
+    global i
+    current = list()
+    voltage = list()
+    for j in range(0, samples):
+        temp_v = 5.0 * math.sin(2*math.pi*141*( i / 4000.0))
+        temp_v += math.sin(2*math.pi*300*( i / 4000.0))
+        #temp_v += (random.randint(-100, 100) / 250.0)
+        temp_c = 0.01 * math.sin(2*math.pi*57*((i) / 4000.0) + (0.5 * math.pi))
+        temp_c += 0.005 * math.sin(2*math.pi*100*((i) / 4000.0))
+        voltage.append(temp_v)
+        current.append(temp_c)
+        i = i + 1
+    return (voltage, current)
+
 
 async def hello():
     random.seed(time.time())
-    async with websockets.connect("ws://localhost:8080/Arduino") as websocket:
-        await websocket.send("Test_1")
-        i = 0
+    async with websockets.connect("ws://localhost:8080/device/12345") as websocket:
+        response = await websocket.recv()
         while True:
-            current = list()
-            voltage = list()
-            for j in range(0,10):
-                temp_v = 5.0 * math.sin(2*math.pi*200*(i / 4000.0))
-                temp_v = temp_v + (random.randint(-100, 100) / 200.0 )
-                temp_c = math.sin(2*math.pi*200*(i / 4000.0) + (0.25 * math.pi))
-                temp_c = temp_c + (random.randint(-100, 100) / 200.0 )
-                current.append(temp_c)
-                voltage.append(temp_v)
-                i += 1
-
-            current = [ str(x) for x in current ]
-            voltage = [ str(x) for x in voltage ]
-            voltage_str = "v=[" + ','.join(voltage) + "]"
-            current_str = "c=[" + ','.join(current) + "]"
-            string = voltage_str + ";" + current_str
-            print(string)
-            await websocket.send(string)
-            time.sleep(1)
+            raw = construct_data(200)
+            data = dict()
+            data["0"] = raw[0]
+            data["1"] = raw[1]
+            packed = msgpack.packb(data, use_bin_type=True)
+            encoded = base64.b64encode(packed)
+            await websocket.send(encoded)
+            await asyncio.sleep(1)
 
 asyncio.run(hello())
