@@ -1,0 +1,11 @@
+{% extends "base.html" %}
+
+{% block content %}
+<form action="/auth/create", method="post">
+	Username: <input type="text" name="username">
+	Password: <input type="password" name="password" id="pass">
+	Key: <input type="text" name="key">
+	<input type="submit" value="Create Account">
+	{% raw xsrf_form_html() %}
+</form>
+{% end %}
