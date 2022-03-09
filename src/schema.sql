@@ -20,8 +20,17 @@ create table api_keys (
 create table devices (
 	id			INTEGER PRIMARY KEY AUTOINCREMENT,
 	user_id			INTEGER NOT NULL,
+	name			text NOT NULL,
 	device_key		text NOT NULL,
 	FOREIGN KEY(user_id) REFERENCES users(id)
+);
+
+create table device_fields (
+	id			INTEGER PRIMARY KEY AUTOINCREMENT,
+	device_id		INTEGER NOT NULL,
+	field_id		INTEGER NOT NULL,
+	field			text NOT NULL,
+	FOREIGN KEY(device_id) REFERENCES devices(id)
 );
 
 create table samples (
