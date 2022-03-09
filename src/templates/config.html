@@ -1,0 +1,84 @@
+{% block content %}
+<div id="base">
+	<button id="new_device">New Device</button>
+	<div id="new_device_div"></div>
+	<div id="devices"></div>
+</div>
+<script>
+	let new_device = document.getElementById("new_device");
+	new_device.addEventListener('click', event => {
+		
+	});
+
+	function name_field(name) {
+		var name_div = document.createElement('div');
+		var name_holder = document.createElement('span');
+		var name_str_holder = document.createElement('span');
+		var name_str = document.createTextNode("Name:");
+		var name = document.createTextNode(name);
+		name_str_holder.appendChild(name_str);
+		name_holder.appendChild(name);
+		name_div.appendChild(name_str_holder);
+		name_div.appendChild(name_holder);
+		return name_div;
+	}
+
+	function key_field(name) {
+		var key_div = document.createElement('div');
+		var key_holder = document.createElement('span');
+		var key_str_holder = document.createElement('span');
+		var key_str = document.createTextNode("Key:");
+		var key = document.createTextNode(key);
+		key_str_holder.appendChild(key_str);
+		key_holder.appendChild(key);
+		key_div.appendChild(key_str_holder);
+		key_div.appendChild(key_holder);
+		return key_div;
+	}
+
+	function field_names(fields) {
+		var fields_tag = document.createElement('div');
+		for(let i=0; i < fields.length; i++) {
+			var field_tag = document.createElement('div');
+			var field_holder = document.createElement('span');
+			var field_str_holder = document.createElement('span');
+			var field_str = document.createTextNode("Field:");
+			var field = document.createTextNode(fields[i]);
+			field_str_holder.appendChild(field_str);
+			field_holder.appendChild(field);
+			field_tag.appendChild(field_str_holder);
+			field_tag.appendChild(field_holder);
+			fields_tag.appendChild(field_tag);
+		}
+		return fields_tag
+	}
+
+	window.addEventListener('load', event => {
+		const request = new XMLHttpRequest();
+		const url = 'http://127.0.0.1:8080/api/device';
+		const device_id = document.getElementById('devices');
+		request.open("GET", url);
+		request.send();
+
+		request.onload = (e) => {
+			var devices = JSON.parse(request.response);
+			for(let i=0; i<devices.length; i++) {
+				device_id.appendChild(document.createElement('hr'));
+				var device_url = url.concat("/").concat(devices[i]);
+				const device_request = new XMLHttpRequest();
+				device_request.open("GET", device_url);
+				device_request.send();
+
+				device_request.onload = (e) => {
+					var msg = JSON.parse(device_request.response);
+					var device = document.createElement('div');
+					device.appendChild(name_field(msg["name"]));
+					device.appendChild(key_field(devices[i]));
+					device.appendChild(field_names(msg["fields"]));
+					device_id.appendChild(device);
+				}
+			}
+		}
+	});
+</script>
+{% end %}
