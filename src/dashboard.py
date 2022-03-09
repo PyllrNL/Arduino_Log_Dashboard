@@ -14,6 +14,7 @@ import cookie_secret
 import base
 import authHandler
 import websocketHandler
+import restHandler
 
 from tornado.options import define, options
 
@@ -41,8 +42,14 @@ class HomeHandler(base.BaseHandler):
         user_id = int(self.get_secure_cookie("arduino_dashboard"))
         statement = "SELECT (key) FROM api_keys\
                 WHERE user_id=:user_id"
-        api_key = await self.query(statement, {"user_id" : user_id})
+        api_key = await self.query(statement, {"user_id":user_id})
         self.render("home.html", api_key=api_key[0].key)
+
+class ConfigHandler(base.BaseHandler):
+    async def get(self):
+        if self.redirect_if_not_authenticated("/auth/login"):
+            return
+        self.render("config.html")
 
 class AboutHandler(base.BaseHandler):
     def get(self):
@@ -57,15 +64,16 @@ class Application(tornado.web.Application):
         handlers = [
             (r"/", HomeHandler),
             (r"/about", AboutHandler),
+            (r"/config", ConfigHandler),
         ]
         handlers.extend(authHandler.handlers())
         handlers.extend(websocketHandler.handlers())
+        handlers.extend(restHandler.handlers())
 
         settings = dict(
                 title=u"Arduino Dashboard",
                 template_path=os.path.join(os.path.dirname(__file__), "templates"),
                 static_path=os.path.join(os.path.dirname(__file__), "static"),
-                xsrf_cookies=True,
                 cookie_secret=cookie_secret.secret,
                 login_url="/auth/login",
                 debug=True,
