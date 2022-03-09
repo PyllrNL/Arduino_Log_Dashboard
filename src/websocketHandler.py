@@ -123,14 +123,14 @@ class ClientHandler(BaseWebSocketHandler):
         self.user_id = 0
         self.devices = list()
 
-    async def open(self, client_id):
+    async def open(self, client_key):
         await asyncio.sleep(0.5)
         self.channels.add(self)
-        self.user_id = await self.get_user_from_api(client_id)
+        self.user_id = await self.get_user_from_api(client_key)
         if self.user_id == 0:
             self.close()
         else:
-            self.client_id = client_id
+            self.client_id = client_key
 
     async def on_message(self, message):
         split = message.split(" ")
