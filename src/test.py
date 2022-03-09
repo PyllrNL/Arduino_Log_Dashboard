@@ -27,10 +27,10 @@ def construct_data(samples):
 
 async def hello():
     random.seed(time.time())
-    async with websockets.connect("ws://localhost:8080/device/12345") as websocket:
+    async with websockets.connect("ws://167.71.68.242:80/device/03pwbIIosvgLQhC_USUHmN6Iz-86xyY_X7noo-jksMc") as websocket:
         response = await websocket.recv()
         while True:
-            raw = construct_data(200)
+            raw = construct_data(100)
             data = dict()
             data["0"] = raw[0]
             data["1"] = raw[1]
