@@ -5,9 +5,8 @@
 {% end %}
 
 {% block content %}
-        <canvas id="voltage_chart"></canvas>
+	<canvas id="Voltage_Chart"></canvas>
         <script>
-	    const api_key = "{{ api_key }}";
             vconfig = {
                 options : {
                     scales : {
@@ -46,10 +45,10 @@
                 }
             };
 
-            const v_ctx = document.getElementById('voltage_chart').getContext('2d');
+            const v_ctx = document.getElementById('Voltage_Chart').getContext('2d');
             const Voltage_Chart = new Chart(v_ctx, vconfig);
-
-	    let webSocket = new WebSocket("ws://localhost:8080/client/".concat(api_key));
+	    const api_key = "{{ api_key }}";
+	    let webSocket = new WebSocket("ws://167.71.68.242:80/client/".concat(api_key));
 
 	    var current_length = 0;
             webSocket.onmessage = function(event) {
@@ -75,8 +74,8 @@
             }
 
 	    webSocket.onopen = function() {
-		webSocket.send("ADD 12345");
-		webSocket.send("GET 12345 100");
+		webSocket.send("ADD 03pwbIIosvgLQhC_USUHmN6Iz-86xyY_X7noo-jksMc");
+		webSocket.send("GET 03pwbIIosvgLQhC_USUHmN6Iz-86xyY_X7noo-jksMc 100");
 	    }
         </script>
 {% end %}
