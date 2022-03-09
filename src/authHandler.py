@@ -15,6 +15,8 @@ import secrets
 import time
 import calendar
 
+from base import NoResultError
+
 class AuthBaseHandler(tornado.web.RequestHandler):
     def row_to_obj(self, row, cur):
         obj = tornado.util.ObjectDict()
