@@ -84,7 +84,7 @@ async def main():
     async with aiosqlite.connect("dashboard.db") as db:
         await maybe_create_tables(db)
         app = Application(db)
-        app.listen(8080)
+        app.listen(8338)
 
         shutdown_event = tornado.locks.Event()
         await shutdown_event.wait()
