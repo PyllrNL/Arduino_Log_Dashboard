@@ -27,13 +27,13 @@ def construct_data(samples):
 
 async def hello():
     random.seed(time.time())
-    async with websockets.connect("ws://localhost:8080/device/03pwbIIosvgLQhC_USUHmN6Iz-86xyY_X7noo-jksMc") as websocket:
+    async with websockets.connect("ws://167.71.68.242:80/device/12345") as websocket:
         response = await websocket.recv()
         while True:
             raw = construct_data(100)
-            data = dict()
-            data["0"] = raw[0]
-            data["1"] = raw[1]
+            data = list()
+            data.append(raw[0])
+            data.append(raw[1])
             packed = msgpack.packb(data, use_bin_type=True)
             encoded = base64.b64encode(packed)
             await websocket.send(encoded)
