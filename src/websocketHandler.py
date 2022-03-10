@@ -21,6 +21,7 @@ import msgpack
 import asyncio
 
 import json
+import datetime
 
 class BaseWebSocketHandler(tornado.websocket.WebSocketHandler):
     def row_to_obj(self, row, cur):
@@ -82,8 +83,10 @@ class DeviceHandler(BaseWebSocketHandler):
     def initialize(self):
         self.device_id = 0
         self.user_id = 0
+        self.unpacker = msgpack.Unpacker()
 
     async def open(self, device_id):
+        print("connection requested")
         await asyncio.sleep(0.5)
         self.channels.add(self)
         self.user_id = await self.get_user_from_device(device_id)
@@ -95,21 +98,25 @@ class DeviceHandler(BaseWebSocketHandler):
             await self.write_message("OK")
 
     async def on_message(self, message):
+        print("got data")
         server = tornado.ioloop.IOLoop.current()
         data = base64.b64decode(message)
-        data = msgpack.unpackb(data, use_list=True, raw=False)
-        timestamps = list()
-        for I in data["0"]:
-            timestamps.append(time.time_ns())
-        data["2"] = data["1"]
-        data["1"] = data["0"]
-        data["0"] = timestamps
-        await self.write_samples(data, self.device_id)
-        server.add_callback(ClientHandler.send_message,
+        self.unpacker.feed(data)
+        for o in self.unpacker:
+            timestamps = list()
+            for I in o[0]:
+                timestamps.append(time.time_ns())
+            send = dict()
+            send["2"] = o[1]
+            send["1"] = o[0]
+            send["0"] = timestamps
+            await self.write_samples(send, self.device_id)
+            server.add_callback(ClientHandler.send_message,
                             self.user_id, self.device_id,
-                            data)
-                            
+                            send)
+
     def on_close(self):
+        print("connection closed")
         self.channels.remove(self)
 
     def check_origin(self, origin):
@@ -176,6 +183,9 @@ class ClientHandler(BaseWebSocketHandler):
         if channel == None:
             return
         if device_id in channel.devices:
+            times = [ ( x / 1000000000.0 ) for x in message["0"]]
+            times = [time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(x)) for x in times]
+            message["0"] = times
             json_dump = json.dumps({ device_id : message })
             await channel.write_message(json_dump)
 
