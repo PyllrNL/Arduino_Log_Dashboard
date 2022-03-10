@@ -1,3 +1,4 @@
 **.db
 *cookie_secret.py
 *__pycache__
+*arduino_secrets.h
