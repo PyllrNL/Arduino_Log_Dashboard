@@ -12,6 +12,9 @@
 // Define how many callback functions you have. Default is 1.
 #define CALLBACK_FUNCTIONS 1
 
+#define MAX_BUFFER_SIZE 128
+#define MAX_BYTE_BUFFER ((MAX_BUFFER_SIZE / 6) * 8) - 3
+
 ///////please enter your sensitive data in the Secret tab/arduino_secrets.h
 /////// Wifi Settings ///////
 char ssid[] = SECRET_SSID;
@@ -68,14 +71,14 @@ bool Write_Message(WebSocketClient client, float *voltage, float *current, uint8
 
   packer.serialize(m);
 
-  char message[128];
+  char message[MAX_BUFFER_SIZE];
 
   unsigned int length = packer.size();
   unsigned int index = 0;
   const uint8_t *data = packer.data();
   unsigned int encoded_length;
-  while ( length > 93 ) {
-    encoded_length = b64_encode(data + index, 93, (unsigned char*)message, 128);
+  while ( length > MAX_BYTE_BUFFER ) {
+    encoded_length = b64_encode(data + index, MAX_BYTE_BUFFER, (unsigned char*)message, MAX_BUFFER_SIZE);
     message[encoded_length] = '\0';
     client.beginMessage(TYPE_TEXT);
     unsigned int send_length = encoded_length+1;
@@ -84,11 +87,11 @@ bool Write_Message(WebSocketClient client, float *voltage, float *current, uint8
       send_length = send_length - write_len;
     } while(send_length > 0);
     client.endMessage();
-    length = length - 93;
-    index = index + 93;
+    length = length - MAX_BYTE_BUFFER;
+    index = index + MAX_BYTE_BUFFER;
   }
   if (length > 0) {
-    encoded_length = b64_encode(data + index, length, (unsigned char *)message, 128);
+    encoded_length = b64_encode(data + index, length, (unsigned char *)message, MAX_BUFFER_SIZE);
     message[encoded_length] = '\0';
     client.beginMessage(TYPE_TEXT);
     unsigned int send_length = encoded_length+1;
