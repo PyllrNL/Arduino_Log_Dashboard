@@ -2,10 +2,15 @@
 
 {% block content %}
 <form action="/auth/create", method="post">
-	Username: <input type="text" name="username">
-	Password: <input type="password" name="password" id="pass">
-	Key: <input type="text" name="key">
-	<input type="submit" value="Create Account">
+	<div class="container">
+		<label for="username"><b>Username</b></label>
+		<input type="text" name="username" placeholder="Enter Username" required>
+		<label for="password"><b>Password</b></label>
+		<input type="password" name="password" placeholder="Enter Username" required>
+		<label for="key"><b>Key</b></label>
+		<input type="text" name="key" placeholder="Enter key" required>
+		<button type="submit">Create Account</button>
+	</div>
 	{% raw xsrf_form_html() %}
 </form>
 {% end %}
