@@ -47,8 +47,7 @@
 
             const v_ctx = document.getElementById('Voltage_Chart').getContext('2d');
             const Voltage_Chart = new Chart(v_ctx, vconfig);
-	    const api_key = "{{ api_key }}";
-	    let webSocket = new WebSocket("ws://167.71.68.242:80/client/".concat(api_key));
+	    let webSocket = new WebSocket("ws://127.0.0.1:8338/client");
 
 	    var current_length = 0;
             webSocket.onmessage = function(event) {

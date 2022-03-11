@@ -126,18 +126,15 @@ class ClientHandler(BaseWebSocketHandler):
     channels = set()
 
     def initialize(self):
-        self.client_id = 0
         self.user_id = 0
         self.devices = list()
 
-    async def open(self, client_key):
+    async def open(self):
         await asyncio.sleep(0.5)
+        if not self.get_secure_cookie("arduino_dashboard"):
+            return
         self.channels.add(self)
-        self.user_id = await self.get_user_from_api(client_key)
-        if self.user_id == 0:
-            self.close()
-        else:
-            self.client_id = client_key
+        self.user_id = int(self.get_secure_cookie("arduino_dashboard"))
 
     async def on_message(self, message):
         split = message.split(" ")
@@ -198,5 +195,5 @@ class ClientHandler(BaseWebSocketHandler):
 def handlers():
     return [
         (r"/device/(.*?)", DeviceHandler),
-        (r"/client/(.*?)", ClientHandler),
+        (r"/client", ClientHandler),
         ]

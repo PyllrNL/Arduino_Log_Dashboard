@@ -38,12 +38,7 @@ class HomeHandler(base.BaseHandler):
     async def get(self):
         if self.redirect_if_not_authenticated("/auth/login"):
             return
-
-        user_id = int(self.get_secure_cookie("arduino_dashboard"))
-        statement = "SELECT (key) FROM api_keys\
-                WHERE user_id=:user_id"
-        api_key = await self.query(statement, {"user_id":user_id})
-        self.render("home.html", api_key=api_key[0].key)
+        self.render("home.html")
 
 class ConfigHandler(base.BaseHandler):
     async def get(self):
