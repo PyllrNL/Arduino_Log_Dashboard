@@ -6,7 +6,7 @@
 #include <WiFiNINA_Generic.h>
 
 #define MAX_BUFFER_SIZE 128
-#define MAX_BYTE_BUFFER ((MAX_BUFFER_SIZE / 6) * 8) - 3
+#define MAX_BYTE_BUFFER 93
 
 #define PATH "/device/" DEVICE_KEY
 
