@@ -105,7 +105,6 @@ class AuthCreateHandler(AuthBaseHandler):
         )
 
         user = await self.create_user(new_user, hashed_password)
-        await self.create_api_key(user.id)
 
         self.set_secure_cookie("arduino_dashboard", str(user.id))
         self.redirect(self.get_argument("next","/"))
