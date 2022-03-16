@@ -29,6 +29,17 @@ class BaseHandler(tornado.web.RequestHandler):
             await cur.execute(stmt, options)
             return [self.row_to_obj(row, cur) for row in await cur.fetchall()]
 
+    async def queryone(self, stmt, options):
+        result = await self.query(stmt, options)
+        if len(result) == 0:
+            raise NoResultError
+        else:
+            return result[0]
+
+    async def querycount(self, stmt, options):
+        result = await self.query(stmt, options)
+        return result[0]['COUNT(*)']
+
     async def query_vertical(self, stmt, options):
         async with (await self.application.db.cursor()) as cur:
             await cur.execute(stmt, options)
