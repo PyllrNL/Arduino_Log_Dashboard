@@ -74,16 +74,6 @@ class AuthBaseHandler(tornado.web.RequestHandler):
                 return True
         return False
 
-    async def create_api_key(self, user):
-        statement = "INSERT INTO api_keys (user_id,key) VALUES\
-                (:user_id, :key)"
-        key = secrets.token_hex(16)
-        await self.query(statement,
-                {'user_id': user,
-                 'key': key})
-        await self.application.db.commit()
-
-
 class AuthCreateHandler(AuthBaseHandler):
     def get(self):
         self.render("create_author.html", title="Arduino Dashboard")
@@ -105,8 +95,10 @@ class AuthCreateHandler(AuthBaseHandler):
         )
 
         user = await self.create_user(new_user, hashed_password)
+        new_hash = secrets.token_urlsafe(32).decode("utf-8")
+        self.application.user_sessions[new_hash] = user_id
 
-        self.set_secure_cookie("arduino_dashboard", str(user.id))
+        self.set_secure_cookie(self.application.cookie_name, new_hash)
         self.redirect(self.get_argument("next","/"))
 
 class AuthLoginHandler(AuthBaseHandler):
@@ -126,14 +118,23 @@ class AuthLoginHandler(AuthBaseHandler):
                 tornado.escape.utf8(user.hashed_password),
         )
         if password_equal:
-            self.set_secure_cookie("arduino_dashboard", str(user.id))
+            new_hash = secrets.token_urlsafe(32)
+
+            for (key,vals) in self.application.user_sessions:
+                if vals == user.id:
+                    self.application.user_sessions.remove(key)
+
+            self.application.user_sessions[new_hash] = user.id
+            print(self.application.user_sessions)
+
+            self.set_secure_cookie(self.application.cookie_name, new_hash)
             self.redirect(self.get_argument("next", "/"))
         else:
             self.render("login.html", error="incorrect_password")
 
 class AuthLogoutHandler(AuthBaseHandler):
     def get(self):
-        self.clear_cookie("arduino_dashboard")
+        self.clear_cookie(self.application.cookie_name)
         self.redirect(self.get_argument("next", "/"))
 
 def handlers():
