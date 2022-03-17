@@ -56,6 +56,8 @@ class AboutHandler(base.BaseHandler):
 class Application(tornado.web.Application):
     def __init__(self, db):
         self.db = db
+        self.cookie_name = "arduino_dashboard"
+        self.user_sessions = dict()
         handlers = [
             (r"/", HomeHandler),
             (r"/about", AboutHandler),
