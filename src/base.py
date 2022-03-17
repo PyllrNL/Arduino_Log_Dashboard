@@ -13,7 +13,7 @@ class NoResultError(Exception):
 
 class BaseHandler(tornado.web.RequestHandler):
     def redirect_if_not_authenticated(self, redirection):
-        if not self.get_secure_cookie("arduino_dashboard"):
+        if not self.get_secure_cookie(self.application.cookie_name):
             self.redirect(redirection)
             return True
         return False
