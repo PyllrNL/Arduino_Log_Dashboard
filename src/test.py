@@ -17,17 +17,17 @@ def construct_data(samples):
         temp_v = 5.0 * math.sin(2*math.pi*141*( i / 4000.0))
         temp_v += math.sin(2*math.pi*300*( i / 4000.0))
         #temp_v += (random.randint(-100, 100) / 250.0)
-        temp_c = 0.01 * math.sin(2*math.pi*57*((i) / 4000.0) + (0.5 * math.pi))
-        temp_c += 0.005 * math.sin(2*math.pi*100*((i) / 4000.0))
+        #temp_c = 0.01 * math.sin(2*math.pi*57*((i) / 4000.0) + (0.5 * math.pi))
+        #temp_c += 0.005 * math.sin(2*math.pi*100*((i) / 4000.0))
         voltage.append(temp_v)
-        current.append(temp_c)
+        #current.append(temp_c)
         i = i + 1
     return (voltage, current)
 
 
 async def hello():
     random.seed(time.time())
-    async with websockets.connect("ws://167.71.68.242:80/device/12345") as websocket:
+    async with websockets.connect("ws://127.0.0.1:8338/device/pV5BLoHP-37SVNF4AjdwThB0B_wlDIEl8H2FJB1yS0I") as websocket:
         response = await websocket.recv()
         while True:
             raw = construct_data(100)
