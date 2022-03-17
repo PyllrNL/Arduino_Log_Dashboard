@@ -5,6 +5,21 @@ create table users (
     UNIQUE(username)
 );
 
+create table dashboards (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    user_id             INTEGER NOT NULL,
+    samples             INTEGER NOT NULL,
+    FOREIGN KEY(user_id) REFERENCES users(id)
+);
+
+create table dashboard_fields (
+    id                  INTEGER PRIMARY KEY AUTOINCREMENT,
+    dashboard_id        INTEGER NOT NULL,
+    device_fields_id    INTEGER NOT NULL,
+    FOREIGN KEY(dashboard_id) REFERENCES dashboards(id),
+    FOREIGN KEY(device_fields_id) REFERENCES device_fields(id)
+);
+
 create table login_keys (
 	id			        INTEGER PRIMARY KEY AUTOINCREMENT,
 	timestamp		    INTEGER NOT NULL,
