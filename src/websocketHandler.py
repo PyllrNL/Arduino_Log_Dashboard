@@ -56,24 +56,23 @@ class BaseWebSocketHandler(tornado.websocket.WebSocketHandler):
             return result[0].user_id
 
     async def write_samples(self, data, device_id):
-        count = 0
-        if len(data["0"]) != len(data["1"]):
-            count = min(len(data["0"]), len(data["1"]))
-        else:
-            count = len(data["0"])
+        count = len(data["timestamps"])
 
         statement = "SELECT (id) FROM devices WHERE device_key=:device_key"
         device_id = await self.query(statement, {"device_key": device_id})
         device_id = device_id[0].id
 
-        statement = "INSERT INTO samples (device_id, timestamp, voltage, current)\
-                VALUES (:device_id, :timestamp, :voltage, :current)"
+        statement = "INSERT INTO samples (device_id, timestamp, data)\
+                VALUES (:device_id, :timestamp, :data)"
         for i in range(0, count):
+            i_data = list()
+            for key,val in data["data"].items():
+                i_data.append(val[i])
+                
             await self.query(statement, {
                     "device_id": device_id,
-                    "timestamp": data["0"][i],
-                    "voltage" : data["1"][i],
-                    "current" : data["2"][i]
+                    "timestamp": data["timestamps"][i],
+                    "data" : msgpack.packb(i_data)
                 })
         await self.application.db.commit()
 
@@ -84,6 +83,7 @@ class DeviceHandler(BaseWebSocketHandler):
         self.device_id = 0
         self.user_id = 0
         self.unpacker = msgpack.Unpacker()
+        self.fields = list()
 
     async def open(self, device_id):
         print("connection requested")
@@ -95,6 +95,17 @@ class DeviceHandler(BaseWebSocketHandler):
             self.close()
         else:
             self.device_id = device_id
+            statement = "SELECT * FROM devices WHERE device_key=:device_key"
+            device = await self.query(statement, {"device_key" : device_id})
+            device = device[0]
+            statement = "SELECT * FROM device_fields WHERE device_id=:id"
+            fields = await self.query(statement, {"id": device.id})
+            for I in fields:
+                single_result = dict()
+                single_result["field_type"] = I.field_type
+                single_result["field_name"] = I.field_name
+                self.fields.insert( I.field_index, single_result )
+            print(fields)
             await self.write_message("OK")
 
     async def on_message(self, message):
@@ -106,14 +117,17 @@ class DeviceHandler(BaseWebSocketHandler):
             timestamps = list()
             for I in o[0]:
                 timestamps.append(time.time_ns())
-            send = dict()
-            send["2"] = o[1]
-            send["1"] = o[0]
-            send["0"] = timestamps
-            await self.write_samples(send, self.device_id)
+            result = dict()
+            result["timestamps"] = timestamps
+            result["data"] = dict()
+            for I in range(0, len(self.fields)):
+                result["data"][self.fields[I]["field_name"]] = o[I]
+
+            print(result)
+            await self.write_samples(result, self.device_id)
             server.add_callback(ClientHandler.send_message,
                             self.user_id, self.device_id,
-                            send)
+                            result)
 
     def on_close(self):
         print("connection closed")
@@ -131,10 +145,11 @@ class ClientHandler(BaseWebSocketHandler):
 
     async def open(self):
         await asyncio.sleep(0.5)
-        if not self.get_secure_cookie("arduino_dashboard"):
+        if not self.get_secure_cookie(self.application.cookie_name):
             return
         self.channels.add(self)
-        self.user_id = int(self.get_secure_cookie("arduino_dashboard"))
+        self.user_id = self.get_secure_cookie(self.application.cookie_name).decode('utf-8')
+        self.user_id = self.application.user_sessions[self.user_id]
 
     async def on_message(self, message):
         split = message.split(" ")
@@ -147,31 +162,10 @@ class ClientHandler(BaseWebSocketHandler):
             check = await self.get_user_from_device(split[1])
             if check != 0:
                 self.devices.remove(split[1])
-        elif split[0] == "GET":
-            check = await self.get_user_from_device(split[1])
-            if check != 0:
-                server = tornado.ioloop.IOLoop.current()
-                samples = int(split[2])
-                statement = "SELECT (id) FROM devices WHERE device_key=:device_key"
-                device_key = await self.query(statement, {"device_key": split[1]})
-                device_id = device_key[0].id
-                statement = "SELECT timestamp,voltage,current FROM \
-                        samples where device_id=:device_id\
-                        ORDER BY timestamp DESC LIMIT 100"
-                data = await self.query(statement, {"device_id":device_id})
-                send_data = dict()
-                send_data["0"] = [ x["timestamp"] for x in data ]
-                send_data["1"] = [ x["voltage"] for x in data ]
-                send_data["2"] = [ x["current"] for x in data ]
-                user_id = check
-                print(user_id, device_key, send_data)
-                server.add_callback(ClientHandler.send_message,
-                        user_id,split[1],send_data)
-
-
 
     @classmethod
     async def send_message(cls, user_id, device_id, message):
+        print("sending message")
         channel = None
         for I in cls.channels:
             if I.user_id == user_id:
@@ -180,9 +174,7 @@ class ClientHandler(BaseWebSocketHandler):
         if channel == None:
             return
         if device_id in channel.devices:
-            times = [ ( x / 1000000000.0 ) for x in message["0"]]
-            times = [time.strftime("%Y-%m-%d %H:%M:%S", time.gmtime(x)) for x in times]
-            message["0"] = times
+            print({device_id : message })
             json_dump = json.dumps({ device_id : message })
             await channel.write_message(json_dump)
 
