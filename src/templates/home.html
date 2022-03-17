@@ -2,79 +2,16 @@
 
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="/static/dashboard.js"></script>
 {% end %}
 
 {% block content %}
-	<canvas id="Voltage_Chart"></canvas>
-        <script>
-            vconfig = {
-                options : {
-                    scales : {
-                        A : {
-                            type : 'linear',
-                            position: 'left',
-                        },
-                        B : {
-                            type : 'linear',
-                            position : 'right',
-                        },
-                    },
-                    animation : {
-                        duration : 250,
-                    },
-                },
-                type: 'line',
-                data: {
-                    labels : [
-                    ],
-                    datasets: [{
-                        label : 'voltage',
-                        yAxisID: 'A',
-                        backgroundColor: 'rgb(255, 99, 132)',
-                        borderColor: 'rgb(255, 99, 132)',
-                        data: [
-                        ]
-                    },{
-                        label : 'current',
-                        yAxisID: 'B',
-                        backgroundColor: 'rgb(99, 255, 132)',
-                        borderColor: 'rgb(99, 255, 132)',
-                        data: [
-                        ],
-                    }],
-                }
-            };
-
-            const v_ctx = document.getElementById('Voltage_Chart').getContext('2d');
-            const Voltage_Chart = new Chart(v_ctx, vconfig);
-	    let webSocket = new WebSocket("ws://127.0.0.1:8338/client");
-
-	    var current_length = 0;
-            webSocket.onmessage = function(event) {
-                var msg = JSON.parse(event.data);
-		msg = msg[Object.keys(msg)[0]];
-                var length = msg["1"].length;
-		console.log(current_length);
-		if ((current_length + length) > 100) {
-			var new_len = (current_length + length) - 100;
-                	vconfig.data.labels.splice(0, new_len);
-			vconfig.data.datasets[0].data.splice(0, new_len);
-			vconfig.data.datasets[1].data.splice(0, new_len);
-		} else {
-			current_length = current_length + length;
-		}
-                vconfig.data.labels = vconfig.data.labels.concat(msg["0"]);
-                vconfig.data.datasets[0].data
-                                = vconfig.data.datasets[0].data.concat(msg["1"]);
-                vconfig.data.datasets[1].data
-                                = vconfig.data.datasets[1].data.concat(msg["2"]);
-
-                Voltage_Chart.update();
-            }
-
-	    webSocket.onopen = function() {
-		webSocket.send("ADD 03pwbIIosvgLQhC_USUHmN6Iz-86xyY_X7noo-jksMc");
-		webSocket.send("GET 03pwbIIosvgLQhC_USUHmN6Iz-86xyY_X7noo-jksMc 100");
-	    }
-        </script>
+    <div id="dashboard">
+        <div id="new_chart">
+            <button onclick="New_Chart()">New Chart</button>
+            <div id="new_chart_area"></div>
+        </div>
+        <div id="charts">
+        </div>
+    </div>
 {% end %}
