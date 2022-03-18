@@ -12,7 +12,6 @@ const base_config = {
 };
 
 var charts = [];
-var devices = [];
 
 function Create_New_Chart_Config( data ) {
     var chart_conf = new Object();
@@ -24,6 +23,7 @@ function Create_New_Chart_Config( data ) {
 
     var field_count = data["fields"].length;
     for ( var i=0; i<field_count; i++ ) {
+        console.log("Create new line");
         var line = new Object();
         line["data"] = [];
         line["label"] = (data["fields"][i]["device_name"].concat(" ")).concat(
@@ -31,6 +31,8 @@ function Create_New_Chart_Config( data ) {
         chart_conf["config"]["data"]["datasets"].push(line);
         chart_conf["fields"][i]["data"] = line;
     }
+
+    console.log("Created new Chart conf");
 
     return chart_conf;
 }
@@ -71,6 +73,20 @@ async function Get_Data(device_id, samples) {
     return data;
 }
 
+function Transform_Data( data, label ) {
+    var length = data[label].length;
+    var items = [];
+    console.log(data);
+    for( var i=0; i<length; i++) {
+        var item = new Object;
+        item["x"] = data["timestamp"][i].toString();
+        item["y"] = data[label][i];
+        items.push(item);
+    }
+    
+    return items;
+}
+
 window.onload = async() => {
     var url = "/api/dashboard"
     let response = await fetch(url);
@@ -89,25 +105,26 @@ window.onload = async() => {
 
     }
 
+    console.log(charts);
+
     var chart_count = charts.length;
 
     for( var i=0; i<chart_count; i++) {
         var chart_conf = charts[i];
         var field_count = chart_conf["fields"].length;
+        console.log("Started filling chart");
         for( var j=0; j<field_count; j++) {
+            console.log("adding data to field");
             var field = chart_conf["fields"][j];
             var ddata = await Get_Data(field["id"], chart_conf["samples"]);
             if (field["name"] in ddata["data"]) {
-                var length = ddata["data"][field["name"]].length;
-                for( var z=0; z<length; z++) {
-                    var item = new Object;
-                    item["x"] = ddata["data"]["timestamp"][z].toString();
-                    item["y"] = ddata["data"][field["name"]][z];
-                    field["data"]["data"].push(item);
-                }
+                var items = Transform_Data( ddata["data"], field["name"]);
+                field["data"]["data"] = items;
             }
         }
     }
+
+    console.log(charts);
 
     var chart_count = charts.length;
     for(var i=0; i<chart_count; i++) {
@@ -129,14 +146,35 @@ window.onload = async() => {
                     var field = charts[i]["fields"][j];
                     if (field["id"] == property) {
                         var ddata = msg[property];
-                        if (field["name"] in ddata["data"]) {
-                            var length = ddata["data"][field["name"]].length;
-                            for( var z=0; z<length; z++) {
-                                var item = new Object;
-                                item["x"] = ddata["timestamps"][z].toString();
-                                item["y"] = ddata["data"][field["name"]][z];
-                                field["data"]["data"].push(item);
+                        if (field["name"] in ddata) {
+                            var new_data = [];
+                            var items = Transform_Data( ddata, field["name"]);
+                            var item_length = items.length;
+                            var curr_length = field["data"]["data"].length;
+                            if (curr_length >= samples) {
+                                if (item_length == samples) {
+                                    new_data = items;
+                                } else if (item_length > samples ) {
+                                    var start = item_length - samples;
+                                    new_data = items.splice(0, start);
+                                } else {
+                                    var diff = item_length;
+                                    field["data"]["data"].splice(0, diff);
+                                    var old_data = field["data"]["data"];
+                                    console.log(old_data.length);
+                                    new_data = old_data.concat(items);
+                                }
+                            } else {
+                                if (item_length > samples ) {
+                                    var start = item_length - samples;
+                                    items.splice(0, start);
+                                    new_data = items
+                                } else {
+                                    new_data = items;
+                                }
                             }
+
+                            field["data"]["data"] = new_data;
                             charts[i]["chart"].update();
                         }
                     }
@@ -163,6 +201,25 @@ window.onload = async() => {
     }
 }
 
+function Remove_Chart(el) {
+    var options = el.parentElement;
+    var chart = options.parentElement;
+
+    var canvas = chart.childNodes[0].childNodes[0];
+    var id = canvas.id.substr(6);
+   
+    var url = '/api/dashboard/'.concat(id);
+    let response = fetch(url, {
+        method: "DELETE",
+        headers: {
+            'Content-Type' : 'application/json'
+        }
+    });
+
+    chart.remove();
+    location.reload();
+}
+
 function Create_New_Chart(data) {
     var charts = document.getElementById('charts');
 
@@ -173,14 +230,14 @@ function Create_New_Chart(data) {
     chart_area.setAttribute("class", "chart_area");
 
     var a_chart_area = document.createElement('canvas');
-    a_chart_area.setAttribute("id", data["id"]);
+    a_chart_area.setAttribute("id", "canvas".concat(data["id"]));
     chart_area.appendChild(a_chart_area);
 
     var options = document.createElement('div');
     options.setAttribute("class", "chart_options");
 
     var option_button = document.createElement('button');
-    option_button.setAttribute("onclick", "Remove_Chart()");
+    option_button.setAttribute("onclick", "Remove_Chart(this)");
     var opt_button_text = document.createTextNode("Remove");
     option_button.appendChild(opt_button_text);
 
@@ -194,31 +251,216 @@ function Create_New_Chart(data) {
     return a_chart_area;
 }
 
-function New_Chart() {
+function Create_Label(name, for_label) {
+    var text = document.createTextNode(name);
+    var bold = document.createElement("b");
+    bold.appendChild(text);
+
+    var label = document.createElement("label");
+    label.setAttribute("for", for_label);
+
+    label.appendChild(bold);
+
+    return label;
+}
+
+function Make_Options(element, listindex) {
+    var options = device_opts[listindex];
+    var select = element.parentElement.childNodes[2];
+
+    if ( select.childNodes.length > 0 ) {
+        for(var i=0; i<select.childNodes.length; i++) {
+            select.childNodes[i].remove();
+        }
+    }
+
+    for(var i=0; i<options.length; i++) {
+        var opt = document.createElement("option");
+        opt.setAttribute("value", options[i]);
+        var opt_text = document.createTextNode(options[i]);
+        opt.appendChild(opt_text);
+        select.appendChild(opt);
+    }
+}
+
+function Create_Dropdown( name, class_name, opt_names, opt_values) {
+    var select = document.createElement("select");
+    select.setAttribute("name", name);
+    select.setAttribute("class", class_name);
+    select.setAttribute("onchange", "Make_Options(this, this.options[this.selectedIndex].value)");
+
+    var length = opt_names.length;
+    for( var i=0; i<length; i++) {
+        var opt = document.createElement("option");
+        opt.setAttribute("value", opt_values[i]);
+        var opt_text = document.createTextNode(opt_names[i]);
+        opt.appendChild(opt_text);
+        select.appendChild(opt);
+    }
+
+    return select;
+}
+
+function Create_Field(index, parent_tag, devices) {
+    var container = document.createElement("div");
+    container.setAttribute("class", "option_field");
+
+    var index_label = Create_Label(index.toString(), "index");
+    var device_label = Create_Label("device", "device");
+    var device_opt_label = Create_Label("field", "device_options");
+
+    var device = Create_Dropdown( "device", "device_choose", devices[0],
+        devices[1]);
+
+    console.log(devices);
+    var fields = device_opts[devices[1][0]];
+    var device_opt = Create_Dropdown( "options", "opt_choose", fields, fields );
+
+    var remove = document.createElement("button");
+    remove.setAttribute("onclick", "Remove_Field(this)");
+    var remove_text = document.createTextNode("Remove");
+    remove.appendChild(remove_text);
+
+    container.appendChild(index_label);
+    container.appendChild(device_label);
+    container.appendChild(device);
+    container.appendChild(device_opt_label);
+    container.appendChild(device_opt);
+    container.appendChild(remove);
+
+    parent_tag.appendChild(container);
+}
+
+function Remove_Field(element) {
+    var field = element.parentElement;
+    field.remove();
+    index -= 1;
+}
+
+function New_Field(element) {
+    var fields = document.getElementsByClassName('field_options')[0];
+    Create_Field(index, fields, devices);
+    index += 1;
+}
+
+function Cancel_New_Chart(element) {
+    var div = element.parentElement;
+    var form = div.parentElement;
+    form.remove();
+    index = 0;
+}
+
+var devices = [];
+var device_opts = new Object;
+var index = 0;
+
+async function New_Chart() {
+    index = 0;
+    devices = [[],[]];
+    device_opts =  new Object;
+
+    var url = "/api/device";
+    let response = await fetch(url);
+    var data = await response.json();
+    data = data["data"];
+    for(var i=0; i<data.length; i++) {
+        devices[0].push(data[i]["name"]);
+        devices[1].push(data[i]["id"]);
+        var device_url = "/api/device/by_id/".concat(data[i]["id"]);
+        let new_response = await fetch(device_url);
+        var dev_data = await new_response.json();
+        console.log(dev_data);
+        var fields = dev_data["fields"];
+        var labels = []
+        for (var j=0; j<fields.length; j++) {
+            labels.push(fields[j]["name"]);
+        }
+        device_opts[data[i]["id"]] = labels;
+    }
+
+    console.log(devices);
+    console.log(device_opts);
+
     var area = document.getElementById('new_chart_area');
 
-    var samples = document.createElement("label");
-    samples.setAttribute("for", "samples");
-
-    var samples_b = document.createElement("b");
-    var samples_text = document.createTextNode("Samples");
-    samples_b.appendChild(samples_text)
-    samples.appendChild(samples_b);
+    var samples = Create_Label("Samples", "samples");
 
     var samples_field = document.createElement("input");
     samples_field.setAttribute("type", "number");
     samples_field.setAttribute("placeholder", "100");
+    samples_field.setAttribute("name", "samples");
     samples_field.required = true;
 
     var div_container = document.createElement("div");
     var form = document.createElement("form");
     form.setAttribute("action", "");
     form.setAttribute("method", "post");
+    form.setAttribute("id", "new_chart_form");
 
     div_container.appendChild(samples);
     div_container.appendChild(samples_field);
 
+    fields = document.createElement("div");
+    fields.setAttribute("class", "field_options");
+
+    Create_Field( index, fields, devices );
+    index += 1;
+
+    var new_field_button = document.createElement("button");
+    new_field_button.setAttribute("onclick", "New_Field(this)");
+    var new_field_text = document.createTextNode("New field");
+    new_field_button.appendChild(new_field_text);
+
+    div_container.appendChild(new_field_button);
+    div_container.appendChild(fields);
+
+    var cancel_button = document.createElement("button");
+    cancel_button.setAttribute("onclick", "Cancel_New_Chart(this)");
+    var cancel_text = document.createTextNode("Cancel");
+    cancel_button.appendChild(cancel_text);
+
+    var submit_button = document.createElement("button");
+    submit_button.setAttribute("type", "submit");
+    var submit_text = document.createTextNode("Create Chart");
+    submit_button.appendChild(submit_text);
+
+    div_container.appendChild(submit_button);
+    div_container.appendChild(cancel_button);
+
     form.appendChild(div_container);
+    if( area.childNodes.length > 0 ) {
+        for(var i=0; i<area.childNodes.length; i++) {
+            area.childNodes[i].remove();
+        }
+    }
 
     area.appendChild(form);
+
+    form.addEventListener('submit', (event) => {
+        event.preventDefault();
+
+        var trans = new Object;
+        trans["samples"] = form.elements["samples"].value
+        trans["fields"] = [];
+        var devs = form.elements["device"];
+        var opts = form.elements["options"];
+        for(var i=0; i<devs.length; i++) {
+            var field = new Object;
+            field["device_id"] = devs[i].value;
+            field["name"] = opts[i].value;
+            trans["fields"].push(field);
+        }
+
+        fetch("/api/dashboard", {
+            method: "POST",
+            body: JSON.stringify(trans),
+            headers: {
+                "Content-Type" : "application/json"
+            }
+        });
+
+        form.remove();
+        location.reload();
+
+    });
 }
