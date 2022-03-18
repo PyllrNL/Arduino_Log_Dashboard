@@ -1,3 +1,8 @@
+const colors = [
+    'rgb()',
+    'rgb()',
+];
+
 const base_config = {
     options : {
         animation : {
@@ -15,24 +20,26 @@ var charts = [];
 
 function Create_New_Chart_Config( data ) {
     var chart_conf = new Object();
+    console.log(data);
     chart_conf["samples"] = data["samples"];
     chart_conf["id"] = data["id"];
     chart_conf["name"] = data["name"];
     chart_conf["fields"] = data["fields"];
-    chart_conf["config"] = base_config;
+    chart_conf["config"] = JSON.parse(JSON.stringify(base_config));
 
     var field_count = data["fields"].length;
+    console.log("Create graph");
     for ( var i=0; i<field_count; i++ ) {
-        console.log("Create new line");
+        console.log("Creating dataset");
         var line = new Object();
         line["data"] = [];
         line["label"] = (data["fields"][i]["device_name"].concat(" ")).concat(
             data["fields"][i]["name"]);
+        console.log(line);
         chart_conf["config"]["data"]["datasets"].push(line);
         chart_conf["fields"][i]["data"] = line;
     }
 
-    console.log("Created new Chart conf");
 
     return chart_conf;
 }
@@ -43,7 +50,6 @@ function Get_Devices_From_Chart_Config( chart_conf ) {
     var field_count = chart_conf["fields"].length;
     for ( var i=0; i<field_count; i++) {
         if (devices.includes(chart_conf["fields"][i]["id"]) != true ) {
-            console.log(chart_conf["fields"][i]["id"]);
             devices.push(chart_conf["fields"][i]["id"]);
         }
     }
@@ -76,7 +82,6 @@ async function Get_Data(device_id, samples) {
 function Transform_Data( data, label ) {
     var length = data[label].length;
     var items = [];
-    console.log(data);
     for( var i=0; i<length; i++) {
         var item = new Object;
         item["x"] = data["timestamp"][i].toString();
@@ -112,9 +117,7 @@ window.onload = async() => {
     for( var i=0; i<chart_count; i++) {
         var chart_conf = charts[i];
         var field_count = chart_conf["fields"].length;
-        console.log("Started filling chart");
         for( var j=0; j<field_count; j++) {
-            console.log("adding data to field");
             var field = chart_conf["fields"][j];
             var ddata = await Get_Data(field["id"], chart_conf["samples"]);
             if (field["name"] in ddata["data"]) {
@@ -123,8 +126,6 @@ window.onload = async() => {
             }
         }
     }
-
-    console.log(charts);
 
     var chart_count = charts.length;
     for(var i=0; i<chart_count; i++) {
@@ -136,13 +137,12 @@ window.onload = async() => {
 
     webSocket.onmessage = function(event) {
         var msg = JSON.parse(event.data);
-        console.log(msg);
         var chart_count = charts.length;
         for(const property in msg) {
             for(var i=0; i<chart_count; i++) {
                 var samples = charts[i]["samples"];
                 var field_count = charts[i]["fields"];
-                for(var j=0; j<chart_count; j++) {
+                for(var j=0; j<field_count.length; j++) {
                     var field = charts[i]["fields"][j];
                     if (field["id"] == property) {
                         var ddata = msg[property];
@@ -161,7 +161,6 @@ window.onload = async() => {
                                     var diff = item_length;
                                     field["data"]["data"].splice(0, diff);
                                     var old_data = field["data"]["data"];
-                                    console.log(old_data.length);
                                     new_data = old_data.concat(items);
                                 }
                             } else {
@@ -195,13 +194,12 @@ window.onload = async() => {
         for( var i=0; i<devices_count; i++) {
             var command_str = "ADD ";
             var command = command_str.concat(devices[i]);
-            console.log(command);
             webSocket.send(command);
         }
     }
 }
 
-function Remove_Chart(el) {
+async function Remove_Chart(el) {
     var options = el.parentElement;
     var chart = options.parentElement;
 
@@ -209,7 +207,7 @@ function Remove_Chart(el) {
     var id = canvas.id.substr(6);
    
     var url = '/api/dashboard/'.concat(id);
-    let response = fetch(url, {
+    let response = await fetch(url, {
         method: "DELETE",
         headers: {
             'Content-Type' : 'application/json'
@@ -265,13 +263,11 @@ function Create_Label(name, for_label) {
 }
 
 function Make_Options(element, listindex) {
-    var options = device_opts[listindex];
-    var select = element.parentElement.childNodes[2];
+    var options = [].concat(device_opts[listindex]);
+    var select = (element.parentElement).childNodes[4];
 
-    if ( select.childNodes.length > 0 ) {
-        for(var i=0; i<select.childNodes.length; i++) {
-            select.childNodes[i].remove();
-        }
+    while (select.childNodes.length > 0 ) {
+        select.childNodes[0].remove();
     }
 
     for(var i=0; i<options.length; i++) {
@@ -283,11 +279,14 @@ function Make_Options(element, listindex) {
     }
 }
 
-function Create_Dropdown( name, class_name, opt_names, opt_values) {
+function Create_Dropdown( name, class_name, change, opt_names, opt_values) {
     var select = document.createElement("select");
     select.setAttribute("name", name);
     select.setAttribute("class", class_name);
-    select.setAttribute("onchange", "Make_Options(this, this.options[this.selectedIndex].value)");
+    if(change == true) {
+        select.setAttribute("onchange",
+            "Make_Options(this, this.options[this.selectedIndex].value)");
+    }
 
     var length = opt_names.length;
     for( var i=0; i<length; i++) {
@@ -309,12 +308,11 @@ function Create_Field(index, parent_tag, devices) {
     var device_label = Create_Label("device", "device");
     var device_opt_label = Create_Label("field", "device_options");
 
-    var device = Create_Dropdown( "device", "device_choose", devices[0],
+    var device = Create_Dropdown( "device", "device_choose", true, devices[0],
         devices[1]);
 
-    console.log(devices);
     var fields = device_opts[devices[1][0]];
-    var device_opt = Create_Dropdown( "options", "opt_choose", fields, fields );
+    var device_opt = Create_Dropdown( "options", "opt_choose", false, fields, fields );
 
     var remove = document.createElement("button");
     remove.setAttribute("onclick", "Remove_Field(this)");
@@ -369,7 +367,6 @@ async function New_Chart() {
         var device_url = "/api/device/by_id/".concat(data[i]["id"]);
         let new_response = await fetch(device_url);
         var dev_data = await new_response.json();
-        console.log(dev_data);
         var fields = dev_data["fields"];
         var labels = []
         for (var j=0; j<fields.length; j++) {
@@ -377,9 +374,6 @@ async function New_Chart() {
         }
         device_opts[data[i]["id"]] = labels;
     }
-
-    console.log(devices);
-    console.log(device_opts);
 
     var area = document.getElementById('new_chart_area');
 
@@ -436,14 +430,14 @@ async function New_Chart() {
 
     area.appendChild(form);
 
-    form.addEventListener('submit', (event) => {
+    form.addEventListener('submit', async(event) => {
         event.preventDefault();
 
         var trans = new Object;
         trans["samples"] = form.elements["samples"].value
         trans["fields"] = [];
-        var devs = form.elements["device"];
-        var opts = form.elements["options"];
+        var devs = [].concat(form.elements["device"]);
+        var opts = [].concat(form.elements["options"]);
         for(var i=0; i<devs.length; i++) {
             var field = new Object;
             field["device_id"] = devs[i].value;
@@ -451,7 +445,7 @@ async function New_Chart() {
             trans["fields"].push(field);
         }
 
-        fetch("/api/dashboard", {
+        let response = await fetch("/api/dashboard", {
             method: "POST",
             body: JSON.stringify(trans),
             headers: {
