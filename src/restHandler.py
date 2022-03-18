@@ -168,6 +168,7 @@ class RestBaseHandler(base.BaseHandler):
         return response
 
     async def delete_device_with_id( self, user_id, device_id ):
+        print("Function to delete device");
         response = dict()
 
         statement = "SELECT * FROM devices WHERE device_key=:device_key"
@@ -175,6 +176,8 @@ class RestBaseHandler(base.BaseHandler):
 
         response["id"] = result[0].device_key
         response["name"] = result[0].name
+
+        device_num = result[0].id
 
         statement = "SELECT * FROM device_fields WHERE device_id=:device_id\
                 ORDER BY field_index ASC"
@@ -190,8 +193,13 @@ class RestBaseHandler(base.BaseHandler):
                 })
 
         statement = "DELETE FROM device_fields WHERE device_id=:device_id"
-        await self.query(statement, {"device_id" : result[0].id })
+        await self.query(statement, {"device_id" : device_num })
 
+        print(device_num)
+        statement = "DELETE FROM samples WHERE device_id=:device_id"
+        await self.query(statement, {"device_id" : device_num })
+
+        print("Deleting this device", device_id)
         statement = "DELETE FROM devices WHERE device_key=:device_key"
         await self.query(statement, {"device_key" : device_id})
         await self.application.db.commit()
@@ -463,6 +471,7 @@ class RestDeviceSingleHandler(RestBaseHandler):
         device_id = identification
         device = None
         if category == 'id':
+            print("Deleting device");
             device = await self.delete_device_with_id( user_id, device_id )
         elif category == 'name':
             device = await self.delete_device_with_name( user_id, device_id )
