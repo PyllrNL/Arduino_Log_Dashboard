@@ -314,10 +314,10 @@ class RestBaseHandler(base.BaseHandler):
         device_fields = list()
         for I in args["fields"]:
             device = None
-            if I["device_name"]:
+            if "device_name" in I.keys():
                 statement = "SELECT * from devices WHERE name=:name"
                 device = await self.query(statement, {"name": I["device_name"]})
-            elif I["device_id"]:
+            elif "device_id" in I.keys():
                 statement = "SELECT * from devices WHERE device_key=:device_key"
                 device = await self.query(statement, {"device_key": I["device_id"]})
             statement = "SELECT * from device_fields WHERE device_id=:device_id\
