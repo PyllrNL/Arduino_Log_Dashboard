@@ -56,7 +56,7 @@ class BaseWebSocketHandler(tornado.websocket.WebSocketHandler):
             return result[0].user_id
 
     async def write_samples(self, data, device_id):
-        count = len(data["timestamps"])
+        count = len(data["timestamp"])
 
         statement = "SELECT (id) FROM devices WHERE device_key=:device_key"
         device_id = await self.query(statement, {"device_key": device_id})
@@ -71,7 +71,7 @@ class BaseWebSocketHandler(tornado.websocket.WebSocketHandler):
                 
             await self.query(statement, {
                     "device_id": device_id,
-                    "timestamp": data["timestamps"][i],
+                    "timestamp": data["timestamp"][i],
                     "data" : msgpack.packb(i_data)
                 })
         await self.application.db.commit()
@@ -118,7 +118,7 @@ class DeviceHandler(BaseWebSocketHandler):
             for I in o[0]:
                 timestamps.append(time.time_ns())
             result = dict()
-            result["timestamps"] = timestamps
+            result["timestamp"] = timestamps
             result["data"] = dict()
             for I in range(0, len(self.fields)):
                 result["data"][self.fields[I]["field_name"]] = o[I]
@@ -174,7 +174,9 @@ class ClientHandler(BaseWebSocketHandler):
         if channel == None:
             return
         if device_id in channel.devices:
-            print({device_id : message })
+            for key,value in message["data"].items():
+                message[key] = value
+            message.pop("data")
             json_dump = json.dumps({ device_id : message })
             await channel.write_message(json_dump)
 
