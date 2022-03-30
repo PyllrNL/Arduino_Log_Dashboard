@@ -132,7 +132,7 @@ window.onload = async() => {
         charts[i]["chart"].update();
     }
 
-    var webSocket = new WebSocket("ws://127.0.0.1:8338/client");
+    var webSocket = new WebSocket("ws://167.71.68.242:8338/client");
 
 
     webSocket.onmessage = function(event) {
