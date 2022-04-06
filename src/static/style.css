@@ -69,3 +69,9 @@ button:hover {
 .container {
 	padding: 16px;
 }
+
+.logo {
+    display: block;
+    object-fit: cover;
+    width: 50px;
+}
