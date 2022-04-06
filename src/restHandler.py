@@ -96,13 +96,18 @@ class RestBaseHandler(base.BaseHandler):
         device_key = secrets.token_urlsafe(32)
 
         statement = "INSERT INTO devices (user_id, name, device_key) VALUES\
-                (:user_id, :name, :device_key) RETURNING id"
+                (:user_id, :name, :device_key)"
 
-        result = await self.query(statement, {
+        await self.query(statement, {
                 "user_id" : user_id,
                 "name" : structure["name"],
                 "device_key" : device_key
             })
+
+        statement = "SELECT * FROM devices WHERE user_id=:user_id\
+                ORDER BY id DESC LIMIT 1"
+
+        result = await self.query(statement, {"user_id":user_id})
 
         device_id = result[0].id
 
@@ -340,11 +345,17 @@ class RestBaseHandler(base.BaseHandler):
             device_fields.append((device[0], field[0]))
 
         statement = "INSERT INTO dashboards (user_id, samples) VALUES\
-                (:user_id, :samples) RETURNING ID"
-        dashboard = await self.query(statement, {
+                (:user_id, :samples)"
+        await self.query(statement, {
                 "user_id" : user_id,
                 "samples" : args["samples"]
             })
+
+        statement = "SELECT * FROM dashboards WHERE user_id=:user_id\
+                ORDER BY id DESC LIMIT 1"
+
+        dashboard = await self.query(statement, {"user_id":user_id})
+
         dashboard = dashboard[0]
 
         statement = "INSERT INTO dashboard_fields (dashboard_id, device_fields_id)\
