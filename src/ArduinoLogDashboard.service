@@ -1,0 +1,12 @@
+[Unit]
+Description=Arduino Log Dasboard
+
+[Service]
+ExecStart=/usr/bin/python3 dashboard.py
+WorkingDirectory=/home/Arduino_Log_Dashboard/src
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=Arduino_Dashboard
+
+[Install]
+WantedBy=multi-user.target
