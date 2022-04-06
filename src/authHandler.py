@@ -95,8 +95,8 @@ class AuthCreateHandler(AuthBaseHandler):
         )
 
         user = await self.create_user(new_user, hashed_password)
-        new_hash = secrets.token_urlsafe(32).decode("utf-8")
-        self.application.user_sessions[new_hash] = user_id
+        new_hash = secrets.token_urlsafe(32)
+        self.application.user_sessions[new_hash] = user.id
 
         self.set_secure_cookie(self.application.cookie_name, new_hash)
         self.redirect(self.get_argument("next","/"))
@@ -120,9 +120,13 @@ class AuthLoginHandler(AuthBaseHandler):
         if password_equal:
             new_hash = secrets.token_urlsafe(32)
 
-            for (key,vals) in self.application.user_sessions:
+            user_sessions = self.application.user_sessions.items()
+            keys = list()
+            for key,vals in user_sessions:
                 if vals == user.id:
-                    self.application.user_sessions.remove(key)
+                    keys.append(key)
+            for key in keys:
+                self.application.user_sessions.pop(key)
 
             self.application.user_sessions[new_hash] = user.id
             print(self.application.user_sessions)

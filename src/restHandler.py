@@ -5,6 +5,9 @@ import base
 import json
 import secrets
 import msgpack
+from io import StringIO
+import csv
+import datetime
 
 class RestBaseHandler(base.BaseHandler):
     def authenticate(self):
@@ -484,7 +487,7 @@ class RestDataSingleHandler(RestBaseHandler):
     async def get(self, category, identification):
         user_id = self.authenticate()
 
-        limit = self.parse_int_argument('limit', 100, 0, 1000)
+        limit = self.parse_int_argument('limit', 100, 0, 10000)
         page = self.parse_int_argument('page', 0, 0, 0)
         ascending = self.parse_bool_argument('ascending', False)
 
@@ -599,6 +602,46 @@ class RestDashboardSingleHandler(RestBaseHandler):
 
         self.write(json.dumps(dashboard))
 
+class DownloadHandler(RestBaseHandler):
+    async def get(self, device_name):
+        user_id = self.authenticate()
+
+        statement = "SELECT * FROM devices WHERE name=:device_name"
+        device = await self.query(statement, {"device_name": device_name})
+        device = device[0]
+        self.set_header("Content-Type", "text/csv");
+        self.set_header("Content-Disposition", "attachment; filename=" + device_name + ".csv")
+
+        statement = "SELECT * FROM SAMPLES WHERE device_id=:device_id"
+        data = await self.query(statement, {"device_id" : device["id"]})
+
+        statement = "SELECT * FROM device_fields WHERE device_id=:device_id"
+        fields = await self.query(statement, {"device_id" : device["id"]})
+
+        field_list = list()
+        for i in fields:
+            field_list.insert( i.field_index, i.field_name )
+
+        response = dict()
+        response["timestamp"] = list()
+        for i in field_list:
+            response[i] = list()
+
+        for i in data:
+            dateobj = datetime.datetime.fromtimestamp( i.timestamp / 1000000000.0 ).strftime('%Y/%m/%d %H:%M:%S.%f')
+            response["timestamp"].append(dateobj)
+            info = msgpack.unpackb(i.data)
+            for j in range(0, len(info)):
+                response[field_list[j]].append(info[j])
+
+        length = len(response["timestamp"])
+        f = StringIO()
+        keys = response.keys()
+        writer = csv.writer(f, delimiter=",")
+        writer.writerow(keys)
+        writer.writerows(zip(*[response[key] for key in keys]))
+        self.write(f.getvalue())
+
 def handlers():
     return [
         (r"/api/device", RestDeviceHandler),
@@ -607,4 +650,5 @@ def handlers():
         #(r"/api/data/by_(id|name)/(.*?)/field", RestDataSingleFieldHandler),
         (r"/api/dashboard", RestDashboardHandler),
         (r"/api/dashboard/(.*?)", RestDashboardSingleHandler),
+        (r"/download/device/by_name/(.*?)", DownloadHandler),
     ]

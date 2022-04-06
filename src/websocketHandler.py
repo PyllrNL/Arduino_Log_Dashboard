@@ -68,7 +68,6 @@ class BaseWebSocketHandler(tornado.websocket.WebSocketHandler):
             i_data = list()
             for key,val in data["data"].items():
                 i_data.append(val[i])
-                
             await self.query(statement, {
                     "device_id": device_id,
                     "timestamp": data["timestamp"][i],
@@ -84,16 +83,18 @@ class DeviceHandler(BaseWebSocketHandler):
         self.user_id = 0
         self.unpacker = msgpack.Unpacker()
         self.fields = list()
+        self.data = 0
 
     async def open(self, device_id):
-        print("connection requested")
-        await asyncio.sleep(0.5)
+        self.data_requests = 0
+        print(datetime.datetime.now().strftime("%Y/%m/%d %H:%M:%S.%f"), "connection requested")
         self.channels.add(self)
         self.user_id = await self.get_user_from_device(device_id)
         if self.user_id == 0:
             await self.write_message("NOK")
             self.close()
         else:
+            self.set_nodelay(True)
             self.device_id = device_id
             statement = "SELECT * FROM devices WHERE device_key=:device_key"
             device = await self.query(statement, {"device_key" : device_id})
@@ -109,11 +110,11 @@ class DeviceHandler(BaseWebSocketHandler):
             await self.write_message("OK")
 
     async def on_message(self, message):
-        print("got data")
         server = tornado.ioloop.IOLoop.current()
         data = base64.b64decode(message)
         self.unpacker.feed(data)
         for o in self.unpacker:
+            self.data = self.data + 1
             timestamps = list()
             for I in o[0]:
                 timestamps.append(time.time_ns())
@@ -123,14 +124,15 @@ class DeviceHandler(BaseWebSocketHandler):
             for I in range(0, len(self.fields)):
                 result["data"][self.fields[I]["field_name"]] = o[I]
 
-            print(result)
             await self.write_samples(result, self.device_id)
             server.add_callback(ClientHandler.send_message,
                             self.user_id, self.device_id,
                             result)
+            await self.write_message("OK")
 
     def on_close(self):
         print("connection closed")
+        print("Interval ", self.data)
         self.channels.remove(self)
 
     def check_origin(self, origin):
@@ -165,20 +167,22 @@ class ClientHandler(BaseWebSocketHandler):
 
     @classmethod
     async def send_message(cls, user_id, device_id, message):
-        print("sending message")
-        channel = None
+        channels = list()
         for I in cls.channels:
             if I.user_id == user_id:
-                channel = I
+                channels.append(I)
                 break;
-        if channel == None:
-            return
-        if device_id in channel.devices:
-            for key,value in message["data"].items():
-                message[key] = value
-            message.pop("data")
-            json_dump = json.dumps({ device_id : message })
-            await channel.write_message(json_dump)
+        if channels == []:
+            return None
+        print(channels)
+        for channel in channels:
+            if device_id in channel.devices:
+                out = dict()
+                for key,value in message["data"].items():
+                    out[key] = value
+                out["timestamp"] = message["timestamp"]
+                json_dump = json.dumps({ device_id : out })
+                await channel.write_message(json_dump)
 
     def on_close(self):
         self.channels.remove(self)

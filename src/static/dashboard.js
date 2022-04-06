@@ -1,7 +1,11 @@
 const colors = [
-    'rgb()',
-    'rgb()',
+    'rgb(255,99,99)',
+    'rgb(255,171,118)',
+    'rgb(255,253,162)',
+    'rgb(186,255,180)'
 ];
+
+var color_index = 0;
 
 const base_config = {
     options : {
@@ -36,8 +40,12 @@ function Create_New_Chart_Config( data ) {
         line["label"] = (data["fields"][i]["device_name"].concat(" ")).concat(
             data["fields"][i]["name"]);
         console.log(line);
+	line["backgroundColor"] = colors[color_index];
+	line["borderColor"] = colors[color_index];
         chart_conf["config"]["data"]["datasets"].push(line);
+        color_index = (color_index + 1) % 4;
         chart_conf["fields"][i]["data"] = line;
+	console.log(chart_conf["config"]);
     }
 
 
@@ -457,4 +465,76 @@ async function New_Chart() {
         location.reload();
 
     });
+}
+
+function Cancel_Download(element) {
+    var parent = element.parentElement;
+    var div = parent.parentElement;
+    parent.remove();
+    var form = document.createElement("form");
+    form.setAttribute("id", "data_form");
+    div.appendChild(form);
+}
+
+async function Create_Download_Field(element) {
+    var div = element.parentElement;
+    var form = null;
+    for( var i = 0; i < div.childNodes.length; i++ ) {
+        if ( div.childNodes[i].id == "data_form" ) {
+            form = div.childNodes[i];
+        }
+    }
+    if ( form == null ) {
+        return null;
+    } else {
+        form.remove();
+    }
+
+    form = document.createElement("form");
+    form.setAttribute("id", "data_form");
+    div.appendChild(form);
+
+    var url = "/api/device";
+    let response = await fetch(url);
+    var data = await response.json();
+    data = data["data"];
+    var devices = [];
+    for(var i=0; i<data.length; i++) {
+        devices.push(data[i]["name"]);
+    }
+
+    var label = Create_Label("Device", "device");
+    var dropdown = Create_Dropdown("device", "device_choose", true, devices, devices);
+    form.appendChild(label);
+    form.appendChild(dropdown);
+    var ok = document.createElement("button");
+    var ok_text = document.createTextNode("OK");
+    ok.setAttribute("type", "submit");
+    ok.appendChild(ok_text);
+
+    var cancel = document.createElement("button");
+    var cancel_text = document.createTextNode("Cancel");
+    cancel.setAttribute("onclick", "Cancel_Download(this)");
+    cancel.setAttribute("type", "button");
+    cancel.appendChild(cancel_text);
+
+    form.appendChild(ok);
+    form.appendChild(cancel);
+
+    form.addEventListener('submit', async event => {
+        event.preventDefault();
+        var device = form.elements["device"][0].value;
+
+        const a = document.createElement('a');
+        a.href = "/download/device/by_name/".concat(device);
+        a.download = url.split('/').pop();
+        a.setAttribute("download", "true");
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+
+        form.remove()
+    });
+
+    return null;
 }
