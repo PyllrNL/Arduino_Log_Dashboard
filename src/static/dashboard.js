@@ -24,7 +24,6 @@ var charts = [];
 
 function Create_New_Chart_Config( data ) {
     var chart_conf = new Object();
-    console.log(data);
     chart_conf["samples"] = data["samples"];
     chart_conf["id"] = data["id"];
     chart_conf["name"] = data["name"];
@@ -32,20 +31,16 @@ function Create_New_Chart_Config( data ) {
     chart_conf["config"] = JSON.parse(JSON.stringify(base_config));
 
     var field_count = data["fields"].length;
-    console.log("Create graph");
     for ( var i=0; i<field_count; i++ ) {
-        console.log("Creating dataset");
         var line = new Object();
         line["data"] = [];
         line["label"] = (data["fields"][i]["device_name"].concat(" ")).concat(
             data["fields"][i]["name"]);
-        console.log(line);
 	line["backgroundColor"] = colors[color_index];
 	line["borderColor"] = colors[color_index];
         chart_conf["config"]["data"]["datasets"].push(line);
         color_index = (color_index + 1) % 4;
         chart_conf["fields"][i]["data"] = line;
-	console.log(chart_conf["config"]);
     }
 
 
@@ -118,8 +113,6 @@ window.onload = async() => {
 
     }
 
-    console.log(charts);
-
     var chart_count = charts.length;
 
     for( var i=0; i<chart_count; i++) {
@@ -140,7 +133,7 @@ window.onload = async() => {
         charts[i]["chart"].update();
     }
 
-    var webSocket = new WebSocket("ws://167.71.68.242:8338/client");
+    var webSocket = new WebSocket("ws://" + location.hostname + ":8338/client");
 
 
     webSocket.onmessage = function(event) {
