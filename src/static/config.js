@@ -220,7 +220,6 @@ async function Create_New_Device() {
             names.push(form.elements["field_name"]);
         }
 
-        console.log(names);
         for(var i=0; i<names.length; i++ ) {
             var field = new Object;
             field["type"] = types[i].value;
