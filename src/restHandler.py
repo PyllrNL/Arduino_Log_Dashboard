@@ -631,15 +631,6 @@ class DownloadHandler(RestBaseHandler):
         self.set_header("Content-Type", "text/csv");
         self.set_header("Content-Disposition", "attachment; filename=" + device_name + ".csv")
 
-        data = list()
-        statement = "SELECT * FROM SAMPLES WHERE device_id=:device_id\
-                ORDERY BY id DESC LIMIT 100000"
-        temp = await self.query(statement, {"device_id" : device["id"]})
-        data.extend(temp)
-        while len(temp) == 100000:
-            temp = await self.query(statement, {"device_id" : device["id"]})
-            data.extend(temp)
-
         statement = "SELECT * FROM device_fields WHERE device_id=:device_id"
         fields = await self.query(statement, {"device_id" : device["id"]})
 
@@ -652,20 +643,36 @@ class DownloadHandler(RestBaseHandler):
         for i in field_list:
             response[i] = list()
 
-        for i in data:
-            dateobj = datetime.datetime.fromtimestamp( i.timestamp / 1000000000.0 ).strftime('%Y/%m/%d %H:%M:%S.%f')
-            response["timestamp"].append(dateobj)
-            info = msgpack.unpackb(i.data)
-            for j in range(0, len(info)):
-                response[field_list[j]].append(info[j])
-
-        length = len(response["timestamp"])
         f = StringIO()
         keys = response.keys()
         writer = csv.writer(f, delimiter=",")
         writer.writerow(keys)
-        writer.writerows(zip(*[response[key] for key in keys]))
         self.write(f.getvalue())
+
+        count, string = self.get_samples(0)
+        offset = count
+        self.write(string)
+        while count == 1000000:
+            count, string = self.get_samples(offset)
+            offset += count
+            self.write(string)
+
+    async def get_samples(self, offset):
+        f = StringIO()
+        writer = csv.writer(f, delimiter=",")
+        statement = "SELECT * FROM samples WHERE device_id=:device_id\
+                ORDER BY id DESC LIMIT 1000000 OFFSET :offset"
+        data = await self.query(statement, {"device_id" : device["id"],
+                                            "offset" : offset})
+        for i in data:
+            dateobj = datetime.datetime.fromtimestamp( i.timestamp / 1000000000.0).strftime("%Y/%m/%d %H:%M:%S.%f")
+            response["timestamp"].append(dateobj)
+            info = msgpack.unpackb(i.data)
+            for j in range(0, len(info)):
+                response[field_list[j]].append(info[j])
+        length = len(response["timestamp"])
+        writer.writerows(zip(*[response[key] for key in keys]))
+        return len(data), f.getvalue()
 
 def handlers():
     return [
