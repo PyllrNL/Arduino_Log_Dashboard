@@ -516,18 +516,79 @@ async function Create_Download_Field(element) {
 
     form.addEventListener('submit', async event => {
         event.preventDefault();
+
+        var progress_bar_container = document.createElement('div');
+        progress_bar_container.setAttribute('id', 'progress_bar_cont');
+        progress_bar_container.setAttribute('style',
+            'width: 100%; background-color: #ddd');
+
+        var progress_bar = document.createElement('div');
+        progress_bar.setAttribute('id', 'progress_bar');
+        progress_bar.setAttribute('style',
+            'width:0;height:30px;background-color:#04AA6D;text-align:center;line-height:30px;color:white;');
+
+        progress_bar_container.appendChild(progress_bar);
+        form.appendChild(progress_bar_container);
+
+        var total_data = [];
+
         var device = form.elements["device"][0].value;
+        var url = "/api/data/by_name/".concat(device);
+        url = url.concat("?limit=10000");
+        let response = await fetch(url);
+        var data = await response.json();
 
-        const a = document.createElement('a');
-        a.href = "/download/device/by_name/".concat(device);
-        a.download = url.split('/').pop();
-        a.setAttribute("download", "true");
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
+        var keys = Object.keys(data["data"]);
+        total_data.push(keys);
 
-        form.remove()
+        for(var i=0; i<data["data"][keys[0]].length; i++) {
+            var row = []
+            for(var j=0; j<keys.length; j++) {
+                row.push(data["data"][keys[j]][i]);
+            }
+            total_data.push(row);
+        }
+
+        var total_pages = data["total_pages"];
+
+        progress_bar.style.width = ((1 / total_pages) * 100) + "%";
+        progress_bar.innerHTML = 1 + "/" + total_pages
+
+        for(var z=1; z<total_pages; z++) {
+            var url_s = url.concat("&page=").concat(z.toString());
+            response = await fetch(url_s);
+            data = await response.json();
+            for(var i=0; i<data["data"][keys[0]].length; i++) {
+                var row = []
+                for(var j=0; j<keys.length; j++) {
+                    row.push(data["data"][keys[j]][i]);
+                }
+                total_data.push(row);
+            }
+            progress_bar.style.width = (((z+1)/ total_pages) * 100) + "%";
+            progress_bar.innerHTML = (z+1) + "/" + total_pages;
+        }
+
+        let csvContent = "data:text/csv;charset=utf-8,";
+
+        total_data.forEach(function(rowArray) {
+            let row = rowArray.join(",");
+            csvContent += row + "\r\n";
+        });
+
+        var encodedUri = encodeURI(csvContent);
+        var link = document.createElement("a");
+        link.setAttribute("href", encodedUri);
+        link.setAttribute("download", device.concat(".csv"));
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        form.remove();
     });
 
     return null;
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
