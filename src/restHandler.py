@@ -535,7 +535,7 @@ class RestDataSingleFieldHandler(RestBaseHandler):
     async def get(self, category, identification):
         user_id = self.authenticate()
 
-        limit = self.parse_int_argument('limit', 100, 0, 1000)
+        limit = self.parse_int_argument('limit', 100, 0, 100000)
         page = self.parse_int_argument('page', 0, 0, 0)
         ascending = self.parse_bool_argument('ascending', False)
 
