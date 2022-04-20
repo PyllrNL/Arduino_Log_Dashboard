@@ -74,6 +74,7 @@ class Application(tornado.web.Application):
                 cookie_secret=cookie_secret.secret,
                 login_url="/auth/login",
                 debug=True,
+                compress_response=True
         )
         super().__init__(handlers, **settings)
 
