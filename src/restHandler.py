@@ -204,8 +204,16 @@ class RestBaseHandler(base.BaseHandler):
         await self.query(statement, {"device_id" : device_num })
 
         print(device_num)
-        statement = "DELETE FROM samples WHERE device_id=:device_id"
-        await self.query(statement, {"device_id" : device_num })
+        statement = "SELECT COUNT(*) FROM samples WHERE device_id=:device_id"
+        rows_left = await self.query(statement, {"device_id" : device_num })
+        while rows_left != 0:
+            statement = "DELETE FROM samples WHERE id in (\
+                    SELECT id FROM samples WHERE device_id=:device_id LIMIT 10000"
+            await self.query(statement, {"device_id" : device_num })
+            if rows_left > 10000:
+                rows_left = rows_left - 10000
+            else:
+                rows_left = 0
 
         print("Deleting this device", device_id)
         statement = "DELETE FROM devices WHERE device_key=:device_key"
@@ -623,8 +631,14 @@ class DownloadHandler(RestBaseHandler):
         self.set_header("Content-Type", "text/csv");
         self.set_header("Content-Disposition", "attachment; filename=" + device_name + ".csv")
 
-        statement = "SELECT * FROM SAMPLES WHERE device_id=:device_id"
-        data = await self.query(statement, {"device_id" : device["id"]})
+        data = list()
+        statement = "SELECT * FROM SAMPLES WHERE device_id=:device_id\
+                ORDERY BY id DESC LIMIT 100000"
+        temp = await self.query(statement, {"device_id" : device["id"]})
+        data.extend(temp)
+        while len(temp) == 100000:
+            temp = await self.query(statement, {"device_id" : device["id"]})
+            data.extend(temp)
 
         statement = "SELECT * FROM device_fields WHERE device_id=:device_id"
         fields = await self.query(statement, {"device_id" : device["id"]})
