@@ -277,9 +277,10 @@ class RestBaseHandler(base.BaseHandler):
         retrieve_limit = limit * (page + 1)
 
         statement = "SELECT * from samples where device_id=:device_id ORDER BY\
-                id {} LIMIT {}".format(
+                id {} LIMIT {} OFFSET {}".format(
                         "ASC" if ascending else "DESC",
-                        retrieve_limit)
+                        retrieve_limit,
+                        (limit * page))
         
         result = await self.query(statement, {
                 "device_id" : device.id,
@@ -294,7 +295,7 @@ class RestBaseHandler(base.BaseHandler):
             response["data"][I.field_name] = list()
             value_index.insert(I.field_index, I.field_name)
 
-        for I in range(limit * page, len(result)):
+        for I in range(0, len(result)):
             response["data"]["timestamp"].append(result[I].timestamp)
             data = msgpack.unpackb( result[I].data )
             for J in range(0, len(data)):
@@ -506,7 +507,7 @@ class RestDataSingleHandler(RestBaseHandler):
     async def get(self, category, identification):
         user_id = self.authenticate()
 
-        limit = self.parse_int_argument('limit', 100, 0, 10000)
+        limit = self.parse_int_argument('limit', 100, 0, 1000000)
         page = self.parse_int_argument('page', 0, 0, 0)
         ascending = self.parse_bool_argument('ascending', False)
 
@@ -535,7 +536,7 @@ class RestDataSingleFieldHandler(RestBaseHandler):
     async def get(self, category, identification):
         user_id = self.authenticate()
 
-        limit = self.parse_int_argument('limit', 100, 0, 100000)
+        limit = self.parse_int_argument('limit', 100, 0, 1000000)
         page = self.parse_int_argument('page', 0, 0, 0)
         ascending = self.parse_bool_argument('ascending', False)
 
