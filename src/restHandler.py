@@ -3,11 +3,13 @@ import tornado.httpserver
 import tornado.web
 import base
 import json
+import sys
 import secrets
 import msgpack
 from io import StringIO
 import csv
 import datetime
+import aiosqlite
 
 class RestBaseHandler(base.BaseHandler):
     def authenticate(self):
@@ -206,9 +208,11 @@ class RestBaseHandler(base.BaseHandler):
         print(device_num)
         statement = "SELECT COUNT(*) FROM samples WHERE device_id=:device_id"
         rows_left = await self.query(statement, {"device_id" : device_num })
+        rows_left = rows_left[0]['COUNT(*)']
+        print(rows_left)
         while rows_left != 0:
             statement = "DELETE FROM samples WHERE id in (\
-                    SELECT id FROM samples WHERE device_id=:device_id LIMIT 10000"
+                    SELECT id FROM samples WHERE device_id=:device_id LIMIT 10000)"
             await self.query(statement, {"device_id" : device_num })
             if rows_left > 10000:
                 rows_left = rows_left - 10000
@@ -262,7 +266,6 @@ class RestBaseHandler(base.BaseHandler):
         result = await self.query(statement, {"device_key": device_id})
         device = result[0]
 
-        print(device_id)
         statement = "SELECT COUNT(*) from samples where device_id=:device_id"
         result = await self.querycount(statement, {"device_id": device.id})
 
@@ -276,16 +279,6 @@ class RestBaseHandler(base.BaseHandler):
 
         retrieve_limit = limit * (page + 1)
 
-        statement = "SELECT * from samples where device_id=:device_id ORDER BY\
-                id {} LIMIT {} OFFSET {}".format(
-                        "ASC" if ascending else "DESC",
-                        retrieve_limit,
-                        (limit * page))
-        
-        result = await self.query(statement, {
-                "device_id" : device.id,
-            })
-
         statement = "SELECT * from device_fields where device_id=:device_id"
         device_fields = await self.query(statement, {"device_id" : device.id})
 
@@ -295,12 +288,25 @@ class RestBaseHandler(base.BaseHandler):
             response["data"][I.field_name] = list()
             value_index.insert(I.field_index, I.field_name)
 
-        for I in range(0, len(result)):
-            response["data"]["timestamp"].append(result[I].timestamp)
-            data = msgpack.unpackb( result[I].data )
-            for J in range(0, len(data)):
-                response["data"][value_index[J]].append(data[J])
+        statement = "SELECT * from samples where device_id=:device_id ORDER BY\
+                id {} LIMIT {} OFFSET {}".format(
+                        "ASC" if ascending else "DESC",
+                        limit,
+                        limit * page)
 
+        print(statement)
+
+        async with (await self.application.db.cursor()) as cur:
+            await cur.execute(statement, {"device_id":device['id']})
+            rows = await cur.fetchall()
+            print(len(rows))
+            for row in rows:
+                response["data"]["timestamp"].append(row[2])
+                data = msgpack.unpackb( row[3] )
+                for J in range(0, len(data)):
+                    response["data"][value_index[J]].append(data[J])
+
+        print( sum( [sys.getsizeof(x) for x in response["data"].values()]))
         return response
 
     async def get_dashboards_with_user(self, user_id):
@@ -529,14 +535,19 @@ class RestDataSingleHandler(RestBaseHandler):
                                           page,
                                           ascending )
 
-        self.write(json.dumps(samples))
+        data = json.dumps(samples)
+        print(sys.getsizeof(data))
+        del samples
+        self.write(data)
+        await self.flush()
+        del data
 
 
 class RestDataSingleFieldHandler(RestBaseHandler):
     async def get(self, category, identification):
         user_id = self.authenticate()
 
-        limit = self.parse_int_argument('limit', 100, 0, 1000000)
+        limit = self.parse_int_argument('limit', 100, 0, 200000)
         page = self.parse_int_argument('page', 0, 0, 0)
         ascending = self.parse_bool_argument('ascending', False)
 
