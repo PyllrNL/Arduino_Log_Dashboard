@@ -534,7 +534,7 @@ async function Create_Download_Field(element) {
 
         var device = form.elements["device"][0].value;
         var url = "/api/data/by_name/".concat(device);
-        url = url.concat("?limit=10000");
+        url = url.concat("?limit=1000000");
         let response = await fetch(url);
         var data = await response.json();
 
