@@ -535,58 +535,62 @@ async function Create_Download_Field(element) {
         var device = form.elements["device"][0].value;
         var url = "/api/data/by_name/".concat(device);
         url = url.concat("?limit=1000000");
-        let response = await fetch(url);
-        var data = await response.json();
 
-        var keys = Object.keys(data["data"]);
-        total_data.push(keys);
-
-        for(var i=0; i<data["data"][keys[0]].length; i++) {
-            var row = []
-            for(var j=0; j<keys.length; j++) {
-                row.push(data["data"][keys[j]][i]);
-            }
-            total_data.push(row);
-        }
-
-        var total_pages = data["total_pages"];
+	var ret = await get_data(url);
+	var total_pages = ret[1];
+	download(ret[0], device.concat("_0"));
 
         progress_bar.style.width = ((1 / total_pages) * 100) + "%";
         progress_bar.innerHTML = 1 + "/" + total_pages
 
         for(var z=1; z<total_pages; z++) {
             var url_s = url.concat("&page=").concat(z.toString());
-            response = await fetch(url_s);
-            data = await response.json();
-            for(var i=0; i<data["data"][keys[0]].length; i++) {
-                var row = []
-                for(var j=0; j<keys.length; j++) {
-                    row.push(data["data"][keys[j]][i]);
-                }
-                total_data.push(row);
-            }
+	    var ret = await get_data(url_s);
+	    download(ret[0], device.concat("_".concat(z.toString())));
             progress_bar.style.width = (((z+1)/ total_pages) * 100) + "%";
             progress_bar.innerHTML = (z+1) + "/" + total_pages;
         }
 
-        let csvContent = "data:text/csv;charset=utf-8,";
-
-        total_data.forEach(function(rowArray) {
-            let row = rowArray.join(",");
-            csvContent += row + "\r\n";
-        });
-
-        var encodedUri = encodeURI(csvContent);
-        var link = document.createElement("a");
-        link.setAttribute("href", encodedUri);
-        link.setAttribute("download", device.concat(".csv"));
-        document.body.appendChild(link);
-        link.click();
-        link.remove();
         form.remove();
     });
 
     return null;
+}
+
+async function get_data(url) {
+	var ret = [];
+	let response = await fetch(url);
+	var data = await response.json();
+
+	var keys = Object.keys(data["data"]);
+	ret.push(keys);
+
+	for(var i=0; i<data["data"][keys[0]].length; i++ ) {
+		var row = [];
+		for(var j=0; j<keys.length; j++) {
+			row.push(data["data"][keys[j]][i]);
+		}
+		ret.push(row);
+	}
+
+	return [ret, data["total_pages"]];
+}
+
+function download(data, name) {
+	let csvContent = "data:text/csv;charset=utf-8,";
+
+	data.forEach(function(rowArray) {
+		let row = rowArray.join(",");
+		csvContent += row + "\r\n";
+	});
+
+	var encodedUri = encodeURI(csvContent);
+	var link = document.createElement('a');
+	link.setAttribute("href", encodedUri);
+	link.setAttribute("download", name.concat(".csv"));
+	document.body.appendChild(link);
+	link.click();
+	link.remove();
 }
 
 function sleep(ms) {
