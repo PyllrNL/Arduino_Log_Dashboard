@@ -45,12 +45,13 @@ class AuthBaseHandler(tornado.web.RequestHandler):
         return False
 
     async def create_user(self, new_user, hashed_password):
-        statement = "INSERT INTO users (username, hashed_password)\
-                VALUES (:name, :hashed_password) RETURNING id"
-        user = await self.query(statement,
+        statement = "INSERT INTO users (username, hashed_password) VALUES (:name, :hashed_password)"
+        await self.query(statement,
                 {"name":new_user,
                  "hashed_password":hashed_password})
         await self.application.db.commit()
+        statement = "SELECT * FROM users where username=:name"
+        user = await self.query(statement, {"name":new_user})
         return user[0]
 
     async def get_user(self, user):
